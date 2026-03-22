@@ -1,0 +1,69 @@
+const express = require("express");
+const path = require("path");
+const http = require("http");
+const session = require("express-session");
+const MongoStore = require("connect-mongo").default;
+const dotenv = require("dotenv");
+const connectDB = require("./config/db");
+const { protect } = require("./middleware/authMiddleware");
+const { initSocket } = require("./sockets");
+
+dotenv.config();
+connectDB();
+
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const authRoutes = require("./routes/authRoutes");
+const screenTimeRoutes = require("./routes/screenTimeRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+const alertRoutes = require("./routes/alertRoutes");
+const challengeRoutes = require("./routes/challengeRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+
+const app = express();
+const server = http.createServer(app);
+
+initSocket(server);
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI,
+    }),
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24,
+    },
+  })
+);
+
+app.use((req, res, next) => {
+  res.locals.currentUser = req.session.userName || null;
+  next();
+});
+
+app.use("/", dashboardRoutes);
+app.use("/", authRoutes);
+app.use("/", screenTimeRoutes);
+app.use("/", reportRoutes);
+app.use("/", alertRoutes);
+app.use("/", challengeRoutes);
+app.use("/", profileRoutes);
+
+app.use((req, res) => {
+  res.status(404).render("404");
+});
+
+const PORT = process.env.PORT || 5002;
+
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Report - Digital Addiction Awareness</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+  <%- include("../partials/navbar") %>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900">Weekly Report</h1>
+        <p class="text-slate-600">Welcome, <%= userName %>. Here is your weekly screen-time summary.</p>
+      </div>
+
+     
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-white rounded-2xl shadow p-6">
+        <h2 class="text-lg font-semibold text-slate-600 mb-2">Total This Week</h2>
+        <p class="text-3xl font-bold text-blue-600"><%= weeklyTotal %> hrs</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6">
+        <h2 class="text-lg font-semibold text-slate-600 mb-2">Top Category</h2>
+        <p class="text-2xl font-bold text-indigo-600"><%= topCategory %></p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6">
+        <h2 class="text-lg font-semibold text-slate-600 mb-2">Entries This Week</h2>
+        <p class="text-3xl font-bold text-green-600"><%= weeklyEntries.length %></p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-6 mb-8">
+      <h2 class="text-2xl font-bold mb-4">Weekly Category Chart</h2>
+      <div class="h-80">
+        <canvas id="weeklyChart"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-6 mb-8">
+      <h2 class="text-2xl font-bold mb-4">Category Totals</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="border rounded-xl p-4">
+          <p><strong>Social Media:</strong> <%= categoryTotals["Social Media"] %> hrs</p>
+        </div>
+        <div class="border rounded-xl p-4">
+          <p><strong>Entertainment:</strong> <%= categoryTotals["Entertainment"] %> hrs</p>
+        </div>
+        <div class="border rounded-xl p-4">
+          <p><strong>Study:</strong> <%= categoryTotals["Study"] %> hrs</p>
+        </div>
+        <div class="border rounded-xl p-4">
+          <p><strong>Gaming:</strong> <%= categoryTotals["Gaming"] %> hrs</p>
+        </div>
+        <div class="border rounded-xl p-4 md:col-span-2">
+          <p><strong>Other:</strong> <%= categoryTotals["Other"] %> hrs</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h2 class="text-2xl font-bold mb-4">Weekly Entries</h2>
+
+      <% if (weeklyEntries && weeklyEntries.length > 0) { %>
+        <div class="space-y-4">
+          <% weeklyEntries.forEach(entry => { %>
+            <div class="border rounded-xl p-4">
+              <p><strong>Category:</strong> <%= entry.category %></p>
+              <p><strong>Hours:</strong> <%= entry.hours %></p>
+              <p><strong>Notes:</strong> <%= entry.notes || "No notes" %></p>
+              <p><strong>Date:</strong> <%= new Date(entry.date).toLocaleDateString() %></p>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="text-slate-500">No entries found for this week.</p>
+      <% } %>
+    </div>
+  </div>
+
+<script id="weekly-chart-labels" type="application/json"><%- JSON.stringify(Object.keys(categoryTotals || {})) %></script>
+<script id="weekly-chart-data" type="application/json"><%- JSON.stringify(Object.values(categoryTotals || {})) %></script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  socket.on("screenTimeUpdated", function () {
+    window.location.reload();
+  });
+
+  const weeklyLabelsEl = document.getElementById("weekly-chart-labels");
+  const weeklyDataEl = document.getElementById("weekly-chart-data");
+  const weeklyCtx = document.getElementById("weeklyChart");
+
+  let weeklyLabels = [];
+  let weeklyData = [];
+
+  try {
+    weeklyLabels = JSON.parse(weeklyLabelsEl.textContent);
+    weeklyData = JSON.parse(weeklyDataEl.textContent);
+  } catch (error) {
+    console.error("Weekly chart data parse error:", error);
+  }
+
+  if (weeklyCtx) {
+    new Chart(weeklyCtx, {
+      type: "pie",
+      data: {
+        labels: weeklyLabels,
+        datasets: [
+          {
+            data: weeklyData,
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+</script>
+<%- include("../partials/footer") %>
+</body>
+</html>

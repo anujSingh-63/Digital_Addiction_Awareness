@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Digital Addiction Awareness</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-indigo-50 min-h-screen text-slate-800 font-sans">
+<%- include("../partials/navbar") %>
+  
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <section class="mb-10">
+      <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-8 sm:p-10">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          <div>
+            <h2 class="text-3xl sm:text-4xl font-bold text-blue-950 mb-3">
+              <% if (userName) { %>
+                Hello, <%= userName %> 👋
+              <% } else { %>
+                Welcome to Digital Addiction Awareness
+              <% } %>
+            </h2>
+            <p class="text-slate-600 text-lg max-w-2xl">
+              Monitor your screen habits, review weekly progress, and take small steps toward a healthier digital lifestyle.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
+            <a href="/track-screen-time" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:shadow-lg hover:shadow-blue-200 transition text-center">
+              <i class="fas fa-clock mr-2"></i>
+              Track Screen Time
+            </a>
+            <a href="/weekly-report" class="bg-white border border-blue-200 text-blue-700 px-6 py-4 rounded-2xl font-bold hover:bg-blue-50 transition text-center">
+              <i class="fas fa-chart-line mr-2"></i>
+              View Weekly Report
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+      <div class="bg-white rounded-2xl shadow border border-blue-50 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-slate-600 font-semibold">Today’s Screen Time</h3>
+          <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+            <i class="fas fa-hourglass-half text-blue-600"></i>
+          </div>
+        </div>
+        <p class="text-3xl font-bold text-blue-700"><%= todayTotal || 0 %> hrs</p>
+        <p class="text-sm text-slate-500 mt-2">Total tracked for today</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow border border-blue-50 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-slate-600 font-semibold">Total Entries</h3>
+          <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+            <i class="fas fa-list text-indigo-600"></i>
+          </div>
+        </div>
+        <p class="text-3xl font-bold text-indigo-700"><%= totalEntries || 0 %></p>
+        <p class="text-sm text-slate-500 mt-2">All your tracked records</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow border border-blue-50 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-slate-600 font-semibold">Weekly Insights</h3>
+          <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+            <i class="fas fa-chart-pie text-green-600"></i>
+          </div>
+        </div>
+        <p class="text-3xl font-bold text-green-700">Live</p>
+        <p class="text-sm text-slate-500 mt-2">See progress in your weekly report</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow border border-blue-50 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-slate-600 font-semibold">Your Status</h3>
+          <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+            <i class="fas fa-user-shield text-yellow-600"></i>
+          </div>
+        </div>
+        <p class="text-2xl font-bold text-yellow-700">
+          <%= userName ? "Logged In" : "Guest" %>
+        </p>
+        <p class="text-sm text-slate-500 mt-2">
+          <%= userName ? "Your data is personalized" : "Login to access full features" %>
+        </p>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <div class="bg-white rounded-3xl shadow border border-blue-50 p-6 sm:p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-blue-950">Recent Usage by Category</h2>
+        </div>
+        <div class="h-80">
+          <canvas id="dashboardChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div class="lg:col-span-2 bg-white rounded-3xl shadow border border-blue-50 p-6 sm:p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-blue-950">Recent Entries</h2>
+          <a href="/track-screen-time" class="text-blue-600 hover:text-blue-700 font-semibold transition">
+            Add New
+          </a>
+        </div>
+
+        <% if (recentEntries && recentEntries.length > 0) { %>
+          <div class="space-y-4">
+            <% recentEntries.forEach(entry => { %>
+              <div class="border border-slate-200 rounded-2xl p-5 hover:shadow-md transition bg-slate-50/70">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                  <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
+                      <i class="fas fa-clock text-blue-600"></i>
+                    </div>
+                    <div>
+                      <h3 class="font-bold text-slate-800"><%= entry.category %></h3>
+                      <p class="text-sm text-slate-500">
+                        <%= new Date(entry.date).toLocaleDateString() %>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xl font-bold text-blue-700"><%= entry.hours %> hrs</p>
+                  </div>
+                </div>
+
+                <div class="mt-2 text-sm text-slate-600">
+                  <strong>Notes:</strong> <%= entry.notes && entry.notes.trim() ? entry.notes : "No notes added" %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="text-center py-12">
+            <div class="w-20 h-20 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-4">
+              <i class="fas fa-clock text-3xl text-blue-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">No screen time records yet</h3>
+            <p class="text-slate-500 mb-6">Start adding your daily usage to see your dashboard insights here.</p>
+            <a href="/track-screen-time" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
+              Add First Entry
+            </a>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="bg-white rounded-3xl shadow border border-blue-50 p-6 sm:p-8">
+        <h2 class="text-2xl font-bold text-blue-950 mb-6">Quick Actions</h2>
+
+        <div class="space-y-4">
+          <a href="/track-screen-time" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <i class="fas fa-plus text-blue-600"></i>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800">Add Screen Time</h3>
+              <p class="text-sm text-slate-500">Record today's usage</p>
+            </div>
+          </a>
+
+          <a href="/weekly-report" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+              <i class="fas fa-chart-bar text-indigo-600"></i>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800">Weekly Report</h3>
+              <p class="text-sm text-slate-500">Check your progress</p>
+            </div>
+          </a>
+
+          <a href="/smart-alerts" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-yellow-300 hover:bg-yellow-50 transition">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+              <i class="fas fa-bell text-yellow-600"></i>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800">Smart Alerts</h3>
+              <p class="text-sm text-slate-500">Review your warnings</p>
+            </div>
+          </a>
+
+          <a href="/detox-challenges" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-green-300 hover:bg-green-50 transition">
+            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+              <i class="fas fa-seedling text-green-600"></i>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800">Detox Challenges</h3>
+              <p class="text-sm text-slate-500">Build healthier habits</p>
+            </div>
+          </a>
+        </div>
+
+        <div class="mt-8 p-5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+          <h3 class="font-bold text-blue-900 mb-2">Wellness Tip</h3>
+          <p class="text-sm text-slate-700 leading-6">
+            Try taking a 5–10 minute break after long screen sessions to reduce fatigue and improve focus.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script id="dashboard-chart-labels" type="application/json"><%- JSON.stringify(chartLabels || []) %></script>
+<script id="dashboard-chart-data" type="application/json"><%- JSON.stringify(chartData || []) %></script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  socket.on("screenTimeUpdated", function () {
+    window.location.reload();
+  });
+
+  const labelsEl = document.getElementById("dashboard-chart-labels");
+  const dataEl = document.getElementById("dashboard-chart-data");
+  const dashboardCtx = document.getElementById("dashboardChart");
+
+  let parsedLabels = [];
+  let parsedData = [];
+
+  try {
+    parsedLabels = JSON.parse(labelsEl.textContent);
+    parsedData = JSON.parse(dataEl.textContent);
+  } catch (error) {
+    console.error("Chart data parse error:", error);
+  }
+
+  if (dashboardCtx) {
+    new Chart(dashboardCtx, {
+      type: "bar",
+      data: {
+        labels: parsedLabels,
+        datasets: [
+          {
+            label: "Hours",
+            data: parsedData,
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+</script>
+<%- include("../partials/footer") %>
+</body>
+</html>
