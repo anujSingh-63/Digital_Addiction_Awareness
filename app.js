@@ -18,6 +18,8 @@ const reportRoutes = require("./routes/reportRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const challengeRoutes = require("./routes/challengeRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const extensionRoutes = require("./routes/extensionRoutes");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -57,6 +59,7 @@ app.use("/", reportRoutes);
 app.use("/", alertRoutes);
 app.use("/", challengeRoutes);
 app.use("/", profileRoutes);
+app.use("/", extensionRoutes);
 
 app.use((req, res) => {
   res.status(404).render("404");
