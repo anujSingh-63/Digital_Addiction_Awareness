@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Tracking Extension",
+  "version": "1.0",
+  "description": "Tracks website usage",
+  "permissions": ["tabs", "activeTab"],
+  "host_permissions": ["http://localhost:5002/"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

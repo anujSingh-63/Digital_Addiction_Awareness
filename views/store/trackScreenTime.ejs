@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Activity Tracking</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800">
@@ -76,7 +77,7 @@
         <div
           id="dailyProgressBar"
           class="h-4 rounded-full <%= usageStatus === 'Healthy' ? 'bg-green-500' : usageStatus === 'Approaching Limit' ? 'bg-yellow-500' : 'bg-red-500' %>"
-          style="width:<%= progressPercent %>%"
+          style="width: <%= progressPercent %>";
         ></div>
       </div>
 
@@ -143,6 +144,41 @@
           </div>
 
           <div id="sessionMessage" class="hidden p-4 rounded-lg border"></div>
+        </div>
+      </div>
+
+      <!-- 🔥 COMBINED LIVE TRACKING - SYSTEM APPS + WEBSITES -->
+      <div class="bg-white rounded-2xl shadow border border-slate-200 p-6">
+        <h2 class="text-2xl font-bold mb-4">🎯 Live Activity Tracking</h2>
+        
+        <!-- Current Active App -->
+        <div class="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <p class="text-xs text-blue-600 font-semibold mb-2">CURRENTLY ACTIVE</p>
+          <div id="currentApp" class="text-lg font-bold text-blue-900">
+            <p>⏳ Waiting for data...</p>
+          </div>
+        </div>
+
+        <!-- Current Active Website -->
+        <div class="mb-6 p-4 rounded-lg bg-green-50 border border-green-200">
+          <p class="text-xs text-green-600 font-semibold mb-2">CURRENT WEBSITE</p>
+          <div id="currentWebsite" class="text-lg font-bold text-green-900">
+            <p>⏳ Waiting for website data...</p>
+          </div>
+        </div>
+
+        <!-- Combined Activity History -->
+        <div id="liveActivityData" class="space-y-2 text-slate-700">
+          <p class="text-slate-500">Loading activity data...</p>
+        </div>
+      </div>
+
+      <!-- 🌐 WEBSITE TRACKING (LEGACY - CAN BE REMOVED) -->
+      <div class="bg-white rounded-2xl shadow border border-slate-200 p-6" style="display:none;">
+        <h2 class="text-2xl font-bold mb-4">🌐 Live Websites</h2>
+
+        <div id="websiteData" class="space-y-2 text-slate-700">
+          <p class="text-slate-500">Loading website data...</p>
         </div>
       </div>
 
@@ -257,9 +293,9 @@
 
   <%- include("../partials/footer") %>
   <%- include("../partials/toast", { userId }) %>
-
   <script>
-    socket.on("screenTimeUpdated", function () {
+    // Socket.io is already initialized in toast.ejs
+    socket.on("screenTimeUpdated", function (){
       window.location.reload();
     });
 
@@ -319,17 +355,35 @@
       return `${hrs}:${mins}:${secs}`;
     }
 
+    // Get current date as YYYY-MM-DD for daily reset
+    function getCurrentDate() {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+
     function getSession() {
       const raw = localStorage.getItem("activeSession");
       return raw ? JSON.parse(raw) : null;
     }
 
     function saveSession(data) {
-      localStorage.setItem("activeSession", JSON.stringify(data));
+      // Add date tracking for daily reset
+      const sessionData = {
+        ...data,
+        sessionDate: getCurrentDate() // Store the date when session was created
+      };
+      localStorage.setItem("activeSession", JSON.stringify(sessionData));
     }
 
     function clearSession() {
       localStorage.removeItem("activeSession");
+    }
+
+    // Check if session belongs to a different day
+    function isSessionFromDifferentDay(session) {
+      if (!session || !session.sessionDate) return false;
+      const currentDate = getCurrentDate();
+      return session.sessionDate !== currentDate;
     }
 
     function getStatusByTotal(totalHours) {
@@ -433,7 +487,8 @@
         category,
         notes: sessionNotes.value || "",
         liveWarningShown: false,
-        liveDangerShown: false
+        liveDangerShown: false,
+        sessionDate: getCurrentDate() // Track the date
       };
 
       saveSession(sessionData);
@@ -450,32 +505,58 @@
       stopBtn.disabled = false;
       sessionCategory.disabled = true;
       sessionNotes.disabled = true;
+    
     }
+      function restoreSession() {
+        const session = getSession();
+        
+        // Check if session is from a different day
+        if (session && isSessionFromDifferentDay(session)) {
+          console.log("🔄 Day changed detected! Clearing old session.");
+          clearSession();
+          resetOverviewToServerValues();
+          return;
+        }
+        
+        if (!session) {
+          resetOverviewToServerValues();
+          return;
+        }
 
-    function restoreSession() {
-      const session = getSession();
-      if (!session) {
-        resetOverviewToServerValues();
-        return;
+        // Calculate how much time has passed since session started
+        const timeSinceStart = Date.now() - session.startTime;
+        const maxSessionTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        
+        // If session is older than 24 hours, it's from before a system shutdown
+        // Clear it as it's likely stale
+        if (timeSinceStart > maxSessionTime) {
+          console.log("🔄 Session is older than 24 hours. Clearing stale session.");
+          clearSession();
+          resetOverviewToServerValues();
+          return;
+        }
+
+        sessionCategory.value = session.category || "";
+        sessionNotes.value = session.notes || "";
+
+        sessionCategory.disabled = true;
+        sessionNotes.disabled = true;
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        sessionStatus.textContent = "Live";
+        sessionStatus.className = "px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold";
+
+        liveWarningShown = Boolean(session.liveWarningShown);
+        liveDangerShown = Boolean(session.liveDangerShown);
+
+        // Restore the timer with the original startTime
+        startTimer(session.startTime);
+        
+        console.log("✅ Session restored from " + new Date(session.startTime).toLocaleTimeString());
       }
-
-      sessionCategory.value = session.category || "";
-      sessionNotes.value = session.notes || "";
-
-      sessionCategory.disabled = true;
-      sessionNotes.disabled = true;
-
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-
-      sessionStatus.textContent = "Live";
-      sessionStatus.className = "px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold";
-
-      liveWarningShown = Boolean(session.liveWarningShown);
-      liveDangerShown = Boolean(session.liveDangerShown);
-
-      startTimer(session.startTime);
-    }
+    
 
     async function stopTracking() {
       const session = getSession();
@@ -530,9 +611,27 @@
       }
     }
 
+    // Periodically save session state (every 5 seconds)
+    setInterval(function() {
+      const session = getSession();
+      if (session) {
+        session.liveWarningShown = liveWarningShown;
+        session.liveDangerShown = liveDangerShown;
+        saveSession(session);
+      }
+    }, 5000);
+
     document.addEventListener("visibilitychange", function () {
       const session = getSession();
       if (!session) return;
+      
+      // Check if day changed while tab was hidden
+      if (isSessionFromDifferentDay(session)) {
+        console.log("🔄 Day changed while tab was hidden. Clearing session.");
+        clearSession();
+        location.reload();
+        return;
+      }
 
       session.liveWarningShown = liveWarningShown;
       session.liveDangerShown = liveDangerShown;
@@ -546,12 +645,182 @@
       session.liveWarningShown = liveWarningShown;
       session.liveDangerShown = liveDangerShown;
       saveSession(session);
+      console.log("💾 Session saved before unload");
     });
+
+    // Check for day change periodically (every minute)
+    setInterval(function() {
+      const session = getSession();
+      if (session && isSessionFromDifferentDay(session)) {
+        console.log("🔄 Day changed detected! Reloading page.");
+        clearSession();
+        location.reload();
+      }
+    }, 60000);
 
     restoreSession();
 
-    startBtn.addEventListener("click", startTracking);
-    stopBtn.addEventListener("click", stopTracking);
+    // Attach event listeners with proper error handling
+    if (startBtn) {
+      startBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        console.log("Start button clicked"); // Debug log
+        startTracking();
+      });
+    }
+
+    if (stopBtn) {
+      stopBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        console.log("Stop button clicked"); // Debug log
+        stopTracking();
+      });
+    }
+
+    //  COMBINED LIVE TRACKING DISPLAY (APPS + WEBSITES)
+    function loadLiveActivityData() {
+      Promise.all([
+        fetch("/api/system-app-data").then(r => r.json()),
+        fetch("/api/website-data").then(r => r.json())
+      ])
+      .then(([appData, websiteData]) => {
+        const container = document.getElementById("liveActivityData");
+        const currentAppContainer = document.getElementById("currentApp");
+        const currentWebsiteContainer = document.getElementById("currentWebsite");
+
+        // Show current app
+        if (appData && appData.length > 0) {
+          const latestApp = appData[appData.length - 1];
+          const timeDisplay = latestApp.timeSpent >= 60 
+            ? `${Math.floor(latestApp.timeSpent / 60)}m ${latestApp.timeSpent % 60}s` 
+            : `${latestApp.timeSpent}s`;
+
+          currentAppContainer.innerHTML = `
+            <div class="space-y-2">
+              <p class="text-sm">
+                <span class="text-blue-900 font-bold">📍 App:</span> 
+                <span class="text-blue-800">${latestApp.appName || "Unknown"}</span>
+              </p>
+              <p class="text-sm">
+                <span class="text-blue-900 font-bold">⏱️ Duration:</span> 
+                <span class="text-blue-800">${timeDisplay}</span>
+              </p>
+              <p class="text-xs text-blue-600">🕐 ${new Date(latestApp.timestamp).toLocaleTimeString()}</p>
+            </div>
+          `;
+        }
+
+        // Show current website
+        if (websiteData && websiteData.length > 0) {
+          const latestWebsite = websiteData[websiteData.length - 1];
+          const favicon = `https://www.google.com/s2/favicons?sz=16&domain=${latestWebsite.website}`;
+          const timeDisplay = latestWebsite.timeSpent >= 60 
+            ? `${Math.floor(latestWebsite.timeSpent / 60)}m ${latestWebsite.timeSpent % 60}s` 
+            : `${latestWebsite.timeSpent}s`;
+
+          currentWebsiteContainer.innerHTML = `
+            <div class="space-y-2">
+              <div class="flex items-center gap-2 mb-2">
+                <img src="${favicon}" alt="${latestWebsite.website}" class="w-5 h-5" onerror="this.style.display='none'" />
+                <p class="text-sm">
+                  <span class="text-green-900 font-bold">🌐 Website:</span> 
+                  <span class="text-green-800">${latestWebsite.website}</span>
+                </p>
+              </div>
+              <p class="text-sm">
+                <span class="text-green-900 font-bold">🔗 URL:</span> 
+                <span class="text-green-800 text-xs break-all">${latestWebsite.url}</span>
+              </p>
+              <p class="text-sm">
+                <span class="text-green-900 font-bold">⏱️ Duration:</span> 
+                <span class="text-green-800">${timeDisplay}</span>
+              </p>
+              <p class="text-xs text-green-600">🕐 ${new Date(latestWebsite.timestamp).toLocaleTimeString()}</p>
+            </div>
+          `;
+        }
+
+        // Combined history
+        let html = `<div class="mb-4 p-3 bg-slate-100 rounded-lg border border-slate-300">
+          <p class="text-xs font-bold text-slate-700 mb-3">📊 COMBINED ACTIVITY HISTORY</p>`;
+
+        // Merge and sort by timestamp (most recent first)
+        const allItems = [];
+        
+        if (appData && appData.length > 0) {
+          appData.forEach(item => {
+            allItems.push({
+              type: 'app',
+              name: item.appName,
+              time: item.timeSpent,
+              timestamp: new Date(item.timestamp),
+              display: item.appName
+            });
+          });
+        }
+        
+        if (websiteData && websiteData.length > 0) {
+          websiteData.forEach(item => {
+            allItems.push({
+              type: 'website',
+              name: item.website,
+              url: item.url,
+              time: item.timeSpent,
+              timestamp: new Date(item.timestamp),
+              display: item.website
+            });
+          });
+        }
+
+        // Sort by timestamp descending
+        allItems.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Show last 15 items
+        allItems.slice(0, 15).forEach((item, idx) => {
+          const timeDisplay = item.time >= 60 
+            ? `${Math.floor(item.time / 60)}m ${item.time % 60}s` 
+            : `${item.time}s`;
+          
+          const timestamp = item.timestamp.toLocaleTimeString();
+          const icon = item.type === 'app' ? '📱' : '🌐';
+          const borderColor = item.type === 'app' ? 'border-blue-500 bg-blue-50' : 'border-green-500 bg-green-50';
+          
+          html += `
+            <div class="p-2 mb-2 border-l-4 ${borderColor} rounded">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-semibold text-slate-800">${idx + 1}. ${icon} ${item.display}</p>
+                  <p class="text-xs text-slate-600">🕐 ${timestamp}</p>
+                  ${item.type === 'website' ? `<p class="text-xs text-slate-500 truncate">🔗 ${item.url}</p>` : ''}
+                </div>
+                <span class="px-3 py-1 ${item.type === 'app' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'} rounded font-bold text-sm">
+                  ${timeDisplay}
+                </span>
+              </div>
+            </div>
+          `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+      })
+      .catch(err => {
+        console.error("Error loading activity data:", err);
+        document.getElementById("liveActivityData").innerHTML = "<p class='text-red-500'>❌ Error loading data</p>";
+      });
+    }
+
+    // Load combined activity data immediately and refresh every 3 seconds
+    loadLiveActivityData();
+    
+    setInterval(() => {
+      loadLiveActivityData();
+    }, 3000);
+
+    // Socket.io connection for real-time updates
+    socket.on("screenTimeUpdated", function (){
+      window.location.reload();
+    });
   </script>
 </body>
 </html>

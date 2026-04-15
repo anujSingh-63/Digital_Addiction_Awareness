@@ -18,6 +18,12 @@ const reportRoutes = require("./routes/reportRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const challengeRoutes = require("./routes/challengeRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const tracker = require("./tracker");
+const ScreenTime = require("./models/ScreenTime");
+
+// Global storage for system app data and website data
+global.systemAppData = [];
+global.websiteData = [];
 
 const app = express();
 const server = http.createServer(app);
@@ -57,9 +63,115 @@ app.use("/", reportRoutes);
 app.use("/", alertRoutes);
 app.use("/", challengeRoutes);
 app.use("/", profileRoutes);
+app.use("/track", require("./routes/trackRoutes"));
+
+// System App Tracking Routes (with Database Storage)
+app.post("/api/system-app-data", async (req, res) => {
+  const { appName, timeSpent } = req.body;
+  const userId = req.session?.userId; // Extract userId from session
+  
+  if (!appName || !timeSpent) {
+    return res.status(400).json({ error: "Missing appName or timeSpent" });
+  }
+  
+  // Add to global storage (keep last 50 entries for real-time display)
+  global.systemAppData.push({
+    appName,
+    timeSpent,
+    timestamp: new Date()
+  });
+  
+  if (global.systemAppData.length > 50) {
+    global.systemAppData.shift();
+  }
+  
+  // Save to database for reports (if user session exists)
+  try {
+    await ScreenTime.create({
+      appName,
+      duration: timeSpent,
+      hours: timeSpent / 3600, // Convert seconds to hours
+      category: "Other", // Default category for app tracking
+      date: new Date(),
+      trackedAt: new Date(),
+      trackingType: "app",
+      user: userId || null, // Use extracted userId from session
+    });
+  } catch (err) {
+    console.error("Error saving app data to database:", err);
+  }
+  
+  console.log(`📱 App Tracked: ${appName} - ${timeSpent}s`);
+  res.json({ success: true });
+});
+
+app.get("/api/system-app-data", (req, res) => {
+  res.json(global.systemAppData);
+});
+
+// Website Tracking Routes (from Chrome Extension - with Database Storage)
+app.post("/api/website-data", async (req, res) => {
+  const { website, url, timeSpent } = req.body;
+  const userId = req.session?.userId; // Extract userId from session
+  
+  if (!website) {
+    return res.status(400).json({ error: "Missing website" });
+  }
+  
+  // Add to global storage (keep last 50 entries for real-time display)
+  global.websiteData.push({
+    website,
+    url,
+    timeSpent: timeSpent || 10,
+    timestamp: new Date()
+  });
+  
+  if (global.websiteData.length > 50) {
+    global.websiteData.shift();
+  }
+  
+  // Save to database for reports
+  try {
+    await ScreenTime.create({
+      website,
+      url,
+      duration: timeSpent || 10,
+      hours: (timeSpent || 10) / 3600, // Convert seconds to hours
+      category: "Social Media", // Default category for website tracking
+      date: new Date(),
+      trackedAt: new Date(),
+      trackingType: "website",
+      user: userId || null, // Use extracted userId from session
+    });
+  } catch (err) {
+    console.error("Error saving website data to database:", err);
+  }
+  
+  console.log(`🌐 Website Tracked: ${website} - ${timeSpent || 10}s`);
+  res.json({ success: true });
+});
+
+app.get("/api/website-data", (req, res) => {
+  res.json(global.websiteData);
+});
+
+// Combined Live Tracking Data (Apps + Websites)
+app.get("/api/live-tracking", (req, res) => {
+  const combined = {
+    apps: global.systemAppData.slice(-10),
+    websites: global.websiteData.slice(-10)
+  };
+  res.json(combined);
+});
+ //app.use("/",tracker);
 
 app.use((req, res) => {
   res.status(404).render("404");
+});
+
+process.on("SIGINT", () => {
+  console.log("System shutting down...");
+  process.exit();
 });
 
 const PORT = process.env.PORT || 5002;

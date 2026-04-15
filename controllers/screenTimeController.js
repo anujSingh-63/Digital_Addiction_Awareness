@@ -448,6 +448,25 @@ const updateUserStreak = async (userId) => {
     await user.save();
   }
 };
+// System usage tracking for desktop app
+const trackSystemUsage = async (req, res) => {
+    try {
+        const { appName, timeSpent } = req.body;
+
+        const data = new ScreenTime({
+            appName,
+            timeSpent
+        });
+
+        await data.save();
+
+        res.status(200).json({ message: "System usage tracked" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
 
 module.exports = {
   getTrackPage,
@@ -456,4 +475,23 @@ module.exports = {
   getEditScreenTimePage,
   updateScreenTime,
   deleteScreenTime,
+  trackSystemUsage,
 };
+
+// const trackSystemUsage = async (req, res) => {
+//     try {
+//         const { appName, timeSpent } = req.body;
+
+//         const data = new ScreenTime({
+//             appName,
+//             timeSpent
+//         });
+
+//         await data.save();
+
+//         res.status(200).json({ message: "System usage tracked" });
+//         res.redirect("/track-screen-time");
+//     } catch (err) {
+//         res.status(500).json({ error: err.message });
+//     }
+// };

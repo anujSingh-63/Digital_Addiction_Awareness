@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Report - Activity Tracking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+  <%- include("../partials/navbar") %>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold text-slate-900">📊 Daily Report</h1>
+      <p class="text-slate-600 mt-2">Today's Activity Analysis</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="mb-4 p-4 rounded-lg bg-red-100 text-red-700 border border-red-200">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <!-- Stats Cards -->
+    <div class="grid md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <p class="text-sm text-slate-600 mb-2">Total Usage</p>
+        <p class="text-3xl font-bold text-indigo-600"><%= totalHours %> hrs</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <p class="text-sm text-slate-600 mb-2">Time Limit</p>
+        <p class="text-3xl font-bold text-slate-700"><%= dailyLimit %> hrs</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <p class="text-sm text-slate-600 mb-2">Time Left</p>
+        <p class="text-3xl font-bold text-green-600"><%= timeLeft %> hrs</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <p class="text-sm text-slate-600 mb-2">Most Used</p>
+        <p class="text-3xl font-bold text-purple-600"><%= topCategory %></p>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid lg:grid-cols-2 gap-8 mb-8">
+      <!-- Category Breakdown Chart -->
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <h2 class="text-2xl font-bold mb-6">📈 Category Breakdown</h2>
+        <div style="position: relative; height: 300px;">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+        <h2 class="text-2xl font-bold mb-6">📊 Daily Progress</h2>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between mb-2">
+              <span class="font-semibold">Daily Limit Progress</span>
+              <span class="text-sm text-slate-600"><%= Math.min((totalHours / dailyLimit) * 100, 100).toFixed(1) %>%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+              <div 
+                class="h-3 bg-indigo-500 transition-all duration-300"
+                style="width: <%= Math.min((totalHours / dailyLimit) * 100, 100) %>%"
+              ></div>
+            </div>
+          </div>
+
+          <div class="pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Warning Threshold</span>
+              <span class="text-sm font-semibold"><%= warningLimit %> hrs</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600">Danger Threshold</span>
+              <span class="text-sm font-semibold"><%= dangerLimit %> hrs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="bg-white p-6 rounded-2xl shadow border border-slate-200">
+      <h2 class="text-2xl font-bold mb-6">📋 Today's Records</h2>
+      
+      <% if (records && records.length > 0) { %>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-slate-200">
+                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Category</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Hours</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Notes</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% records.forEach(record => { %>
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                  <td class="px-4 py-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-indigo-100 text-indigo-700">
+                      <%= record.category %>
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 font-semibold"><%= record.hours %> hrs</td>
+                  <td class="px-4 py-3 text-slate-600"><%= record.notes || "-" %></td>
+                  <td class="px-4 py-3 text-sm text-slate-600">
+                    <%= new Date(record.createdAt).toLocaleTimeString() %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="text-center text-slate-500 py-8">No records for today yet</p>
+      <% } %>
+    </div>
+
+    <!-- Download Options -->
+    <div class="mt-8 bg-white p-6 rounded-2xl shadow border border-slate-200">
+      <h3 class="text-xl font-bold mb-4">📥 Download Report</h3>
+      <div class="grid md:grid-cols-2 gap-4">
+        <button onclick="downloadReport('pdf')" class="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+          <i class="fas fa-file-pdf"></i> Download as PDF
+        </button>
+        <button onclick="downloadReport('csv')" class="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">
+          <i class="fas fa-file-csv"></i> Download as CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="mt-8 flex gap-4 justify-center">
+      <a href="/weekly-report" class="px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
+        📊 Weekly Report
+      </a>
+      <a href="/monthly-report" class="px-6 py-3 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700 transition">
+        📈 Monthly Report
+      </a>
+      <a href="/track-screen-time" class="px-6 py-3 rounded-lg bg-slate-600 text-white font-semibold hover:bg-slate-700 transition">
+        ← Back to Tracking
+      </a>
+    </div>
+
+    <script>
+      function downloadReport(format) {
+        window.location.href = `/daily-report/download?format=${format}`;
+      }
+    </script>
+  </div>
+
+  <%- include("../partials/footer") %>
+
+  <script>
+    const categoryData = <%- JSON.stringify(categoryTotals) %>;
+    
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(categoryData),
+        datasets: [{
+          data: Object.values(categoryData),
+          backgroundColor: [
+            '#6366f1',
+            '#ec4899',
+            '#14b8a6',
+            '#f97316',
+            '#8b5cf6'
+          ],
+          borderColor: 'white',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { size: 12 },
+              padding: 20
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
