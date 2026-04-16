@@ -2,8 +2,6 @@ let currentTab = null;
 let startTime = Date.now();
 let tabStartTime = Date.now();
 
-console.log("🌐 Website Tracking Extension started");
-
 // Extract domain from URL
 function getDomain(url) {
   try {
@@ -29,9 +27,9 @@ function trackWebsite(url) {
       timeSpent: 10  // Sending in 10 second intervals
     }),
   }).then(res => {
-    console.log("✅ Website tracked:", domain);
+    // Website tracked
   }).catch(err => {
-    console.error("❌ Error tracking website:", err);
+    // Error tracking website
   });
 }
 
@@ -42,10 +40,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     currentTab = tab;
     tabStartTime = Date.now();
     
-    console.log("📍 Active Tab:", tab.url);
     trackWebsite(tab.url);
   } catch (err) {
-    console.error("Error getting active tab:", err);
+    // Error getting active tab
   }
 });
 
@@ -53,7 +50,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.active) {
     currentTab = tab;
-    console.log("📍 Tab Updated:", tab.url);
     trackWebsite(tab.url);
   }
 });

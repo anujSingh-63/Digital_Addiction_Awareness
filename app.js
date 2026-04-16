@@ -98,10 +98,8 @@ app.post("/api/system-app-data", async (req, res) => {
       user: userId || null, // Use extracted userId from session
     });
   } catch (err) {
-    console.error("Error saving app data to database:", err);
+    // Error saving app data to database
   }
-  
-  console.log(`📱 App Tracked: ${appName} - ${timeSpent}s`);
   res.json({ success: true });
 });
 
@@ -144,10 +142,8 @@ app.post("/api/website-data", async (req, res) => {
       user: userId || null, // Use extracted userId from session
     });
   } catch (err) {
-    console.error("Error saving website data to database:", err);
+    // Error saving website data to database
   }
-  
-  console.log(`🌐 Website Tracked: ${website} - ${timeSpent || 10}s`);
   res.json({ success: true });
 });
 
@@ -170,12 +166,19 @@ app.use((req, res) => {
 });
 
 process.on("SIGINT", () => {
-  console.log("System shutting down...");
   process.exit();
 });
 
 const PORT = process.env.PORT || 5002;
 
+// API endpoint to get server info
+app.get("/api/server-info", (req, res) => {
+  res.json({
+    url: `http://localhost:${PORT}`,
+    port: PORT
+  });
+});
+
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

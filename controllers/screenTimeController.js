@@ -82,7 +82,6 @@ const getTrackPage = async (req, res) => {
       dailyLimit: user.dailyLimit,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/trackScreenTime", {
       entries: [],
       todayEntries: [],
@@ -130,7 +129,6 @@ const addScreenTime = async (req, res) => {
 
     res.redirect("/track-screen-time");
   } catch (error) {
-    console.error(error);
     res.redirect("/track-screen-time");
   }
 };
@@ -177,7 +175,6 @@ const saveTrackedSession = async (req, res) => {
       entry,
     });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({
       success: false,
       message: "Failed to save tracked session",
@@ -266,7 +263,6 @@ const getEditScreenTimePage = async (req, res) => {
       dailyLimit: user.dailyLimit,
     });
   } catch (error) {
-    console.error(error);
     res.redirect("/track-screen-time");
   }
 };
@@ -304,7 +300,6 @@ const updateScreenTime = async (req, res) => {
 
     res.redirect("/track-screen-time");
   } catch (error) {
-    console.error(error);
     res.redirect("/track-screen-time");
   }
 };
@@ -326,7 +321,6 @@ const deleteScreenTime = async (req, res) => {
 
     res.redirect("/track-screen-time");
   } catch (error) {
-    console.error(error);
     res.redirect("/track-screen-time");
   }
 };

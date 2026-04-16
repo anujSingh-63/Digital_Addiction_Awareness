@@ -13,6 +13,12 @@
 
   <%- include("../partials/navbar") %>
 
+  <!-- Server Info Console Display -->
+  <div id="serverInfoBanner" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 text-center text-sm sm:text-base font-semibold shadow-md" style="display: none;">
+    <i class="fas fa-server mr-2"></i>
+    <span id="serverLink"></span>
+  </div>
+
   <%
     function formatTime(value) {
       const h = Math.floor(value || 0);
@@ -198,7 +204,7 @@
       parsedLabels = JSON.parse(labelsEl.textContent);
       parsedData = JSON.parse(dataEl.textContent);
     } catch (error) {
-      console.error("Chart data parse error:", error);
+      // Chart data parse error
     }
 
     if (dashboardCtx) {
@@ -220,6 +226,20 @@
         }
       });
     }
+  </script>
+
+  <script>
+    // Fetch and display server info
+    fetch('/api/server-info')
+      .then(res => res.json())
+      .then(data => {
+        const banner = document.getElementById('serverInfoBanner');
+        const link = document.getElementById('serverLink');
+        link.innerHTML = `🔗 Server: <a href="${data.url}" target="_blank" class="underline hover:text-gray-100"><strong>${data.url}</strong></a>`;
+        banner.style.display = 'block';
+        console.log(`🚀 Connected to: ${data.url}`);
+      })
+      .catch(err => console.error('Failed to fetch server info:', err));
   </script>
 </body>
 </html>

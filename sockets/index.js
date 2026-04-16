@@ -12,13 +12,10 @@ const initSocket = (server) => {
   });
 
   ioInstance.on("connection", (socket) => {
-    console.log("🟢 User connected:", socket.id);
-
     // 🔹 Join user-specific room
     socket.on("joinUserRoom", (userId) => {
       if (userId) {
         socket.join(`user_${userId}`);
-        console.log(`User ${socket.id} joined room user_${userId}`);
       }
     });
 
@@ -33,18 +30,14 @@ const initSocket = (server) => {
             title: win.title,
             timeSpent:1,
           });
-          
         }
-        console.log(win.title);
-        console.log(win.owner.name)
       } catch (err) {
-        console.log("active-win error:", err.message);
+        // active-win error handling
       }
     }, 2000);
 
     // 🔹 Disconnect
     socket.on("disconnect", () => {
-      console.log("🔴 User disconnected:", socket.id);
       clearInterval(interval);
     });
   });
@@ -59,11 +52,8 @@ const emitWebsiteData = (userId, data) => {
     throw new Error("Socket.io not initialized");
   }
 
-  console.log("📡 Sending website data:", data);
-
   if (userId) {
     ioInstance.to(`user_${userId}`).emit("website-data", data);
-    // console.log("anuj",userId)
   } else {
     ioInstance.emit("website-data", data); // fallback (all users)
   }

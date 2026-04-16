@@ -46,7 +46,6 @@ const getAlertsPage = async (req, res) => {
       limitStatus,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/smartAlerts", {
       userName: req.session.userName || null,
       alerts: [],
@@ -74,7 +73,6 @@ const markAlertAsRead = async (req, res) => {
 
     res.redirect("/smart-alerts");
   } catch (error) {
-    console.error(error);
     res.redirect("/smart-alerts");
   }
 };
@@ -88,7 +86,6 @@ const markAllAlertsAsRead = async (req, res) => {
 
     res.redirect("/smart-alerts");
   } catch (error) {
-    console.error(error);
     res.redirect("/smart-alerts");
   }
 };

@@ -111,7 +111,6 @@ const getWeeklyReport = async (req, res) => {
       dangerLimit: user.dangerLimit,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/weeklyReport", {
       userName: req.session.userName || null,
       weeklyTotal: 0,
@@ -208,7 +207,6 @@ const getDailyReport = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/dailyReport", {
       error: "Could not load daily report: " + error.message,
       categoryTotals: {},
@@ -325,7 +323,6 @@ const getMonthlyReport = async (req, res) => {
       error: null,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/monthlyReport", {
       error: "Could not load monthly report: " + error.message,
       weeklyData: [],
@@ -380,7 +377,6 @@ const downloadDailyReport = async (req, res) => {
       return downloadDailyReportPDF(res, records, categoryTotals, totalHours, timeLeft);
     }
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Failed to download report" });
   }
 };
@@ -425,7 +421,6 @@ const downloadWeeklyReport = async (req, res) => {
       return downloadWeeklyReportPDF(res, weeklyEntries, categoryTotals, weeklyTotal, averageDailyUsage);
     }
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Failed to download report" });
   }
 };
@@ -472,7 +467,6 @@ const downloadMonthlyReport = async (req, res) => {
       return downloadMonthlyReportPDF(res, records, monthlyTotals, totalHours, averageDaily);
     }
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Failed to download report" });
   }
 };

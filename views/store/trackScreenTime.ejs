@@ -512,7 +512,6 @@
         
         // Check if session is from a different day
         if (session && isSessionFromDifferentDay(session)) {
-          console.log("🔄 Day changed detected! Clearing old session.");
           clearSession();
           resetOverviewToServerValues();
           return;
@@ -530,7 +529,6 @@
         // If session is older than 24 hours, it's from before a system shutdown
         // Clear it as it's likely stale
         if (timeSinceStart > maxSessionTime) {
-          console.log("🔄 Session is older than 24 hours. Clearing stale session.");
           clearSession();
           resetOverviewToServerValues();
           return;
@@ -553,8 +551,6 @@
 
         // Restore the timer with the original startTime
         startTimer(session.startTime);
-        
-        console.log("✅ Session restored from " + new Date(session.startTime).toLocaleTimeString());
       }
     
 
@@ -597,7 +593,6 @@
           resetOverviewToServerValues();
         }
       } catch (error) {
-        console.error(error);
         showMessage("Something went wrong while saving the session.", false);
       } finally {
         startBtn.disabled = false;
@@ -627,7 +622,6 @@
       
       // Check if day changed while tab was hidden
       if (isSessionFromDifferentDay(session)) {
-        console.log("🔄 Day changed while tab was hidden. Clearing session.");
         clearSession();
         location.reload();
         return;
@@ -645,14 +639,12 @@
       session.liveWarningShown = liveWarningShown;
       session.liveDangerShown = liveDangerShown;
       saveSession(session);
-      console.log("💾 Session saved before unload");
     });
 
     // Check for day change periodically (every minute)
     setInterval(function() {
       const session = getSession();
       if (session && isSessionFromDifferentDay(session)) {
-        console.log("🔄 Day changed detected! Reloading page.");
         clearSession();
         location.reload();
       }
@@ -664,7 +656,6 @@
     if (startBtn) {
       startBtn.addEventListener("click", function(e) {
         e.preventDefault();
-        console.log("Start button clicked"); // Debug log
         startTracking();
       });
     }
@@ -672,7 +663,6 @@
     if (stopBtn) {
       stopBtn.addEventListener("click", function(e) {
         e.preventDefault();
-        console.log("Stop button clicked"); // Debug log
         stopTracking();
       });
     }
@@ -805,7 +795,6 @@
         container.innerHTML = html;
       })
       .catch(err => {
-        console.error("Error loading activity data:", err);
         document.getElementById("liveActivityData").innerHTML = "<p class='text-red-500'>❌ Error loading data</p>";
       });
     }

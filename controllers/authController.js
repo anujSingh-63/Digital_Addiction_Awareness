@@ -32,7 +32,6 @@ const loginUser = async (req, res) => {
 
     res.redirect("/");
   } catch (error) {
-    console.error(error);
     res.render("auth/login", {
       error: "Login failed",
     });
@@ -93,7 +92,6 @@ const signupUser = async (req, res) => {
 
     res.redirect("/login");
   } catch (error) {
-    console.error("SIGNUP ERROR:", error);
     res.render("auth/signup", {
       error: "Signup failed",
     });
@@ -103,7 +101,6 @@ const signupUser = async (req, res) => {
 const logoutUser = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error(err);
       return res.redirect("/");
     }
     res.redirect("/login");

@@ -119,7 +119,6 @@ const getHomePage = async (req, res) => {
       progressPercent: Number(progressPercent.toFixed(1)),
     });
   } catch (error) {
-    console.error(error);
     res.render("store/homePage", {
       userName: req.session.userName || null,
       userId: req.session.userId || null,

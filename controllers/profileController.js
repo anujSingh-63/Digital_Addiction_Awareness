@@ -43,7 +43,6 @@ const getProfilePage = async (req, res) => {
       success: null,
     });
   } catch (error) {
-    console.error(error);
     res.redirect("/");
   }
 };
@@ -179,7 +178,6 @@ const updateProfile = async (req, res) => {
       success: "Profile settings updated successfully",
     });
   } catch (error) {
-    console.error(error);
     res.redirect("/profile-settings");
   }
 };
@@ -244,7 +242,6 @@ const updatePassword = async (req, res) => {
       success: "Password updated successfully",
     });
   } catch (error) {
-    console.error(error);
     res.redirect("/profile-settings");
   }
 };
