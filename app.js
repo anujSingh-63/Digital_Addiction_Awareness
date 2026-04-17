@@ -4,6 +4,7 @@ const http = require("http");
 const session = require("express-session");
 const MongoStore = require("connect-mongo").default;
 const dotenv = require("dotenv");
+const { execSync } = require("child_process");
 const connectDB = require("./config/db");
 const { protect } = require("./middleware/authMiddleware");
 const { initSocket } = require("./sockets");
@@ -177,6 +178,35 @@ app.get("/api/server-info", (req, res) => {
     url: `http://localhost:${PORT}`,
     port: PORT
   });
+});
+
+
+// API endpoint to get git commit info (committed message tracking)
+app.get("/api/git-info", (req, res) => {
+  try {
+    const { execSync } = require("child_process");
+    const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
+    const commitMessage = execSync("git log -1 --pretty=%B").toString().trim();
+    const commitAuthor = execSync("git log -1 --pretty=%an").toString().trim();
+    const commitDate = execSync("git log -1 --pretty=%ad --date=short").toString().trim();
+    const commitTime = execSync("git log -1 --pretty=%ar").toString().trim();
+    
+    res.json({
+      hash: commitHash,
+      message: commitMessage,
+      author: commitAuthor,
+      date: commitDate,
+      relativeTime: commitTime
+    });
+  } catch (err) {
+    res.json({
+      hash: "unknown",
+      message: "Version tracking unavailable",
+      author: "System",
+      date: new Date().toISOString().split('T')[0],
+      relativeTime: "unknown"
+    });
+  }
 });
 
 server.listen(PORT, () => {
