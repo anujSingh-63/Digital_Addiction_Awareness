@@ -1,241 +1,144 @@
 const ScreenTime = require("../models/ScreenTime");
 const User = require("../models/User");
 
-const CATEGORY_KEYS = [
-  "Social Media",
-  "Entertainment",
-  "Study",
-  "Gaming",
-  "Other"
-];
-
-const formatHours = (value) => Number((value || 0).toFixed(4));
-
-const getStartOfDay = (date = new Date()) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+const getProductivityScore = (todayTotal, warningLimit, dangerLimit) => {
+  if (todayTotal === 0) return 100;
+  if (todayTotal < warningLimit) return 95;
+  if (todayTotal >= warningLimit && todayTotal < dangerLimit) return 70;
+  return 40;
 };
 
-const getEndOfDay = (date = new Date()) => {
-  const d = getStartOfDay(date);
-  d.setDate(d.getDate() + 1);
-  return d;
+const getUsageStatus = (todayTotal, warningLimit, dangerLimit) => {
+  if (todayTotal < warningLimit) return "Healthy";
+  if (todayTotal >= warningLimit && todayTotal < dangerLimit) return "Approaching Limit";
+  return "Limit Reached";
 };
 
-const getLast7Days = () => {
-  const days = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const d = getStartOfDay(new Date());
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-
-  return days;
-};
-
-const getUsageStatus = (todayTotal, user) => {
-  if (todayTotal >= user.dangerLimit) return "Limit Reached";
-  if (todayTotal >= user.warningLimit) return "Approaching Limit";
-  return "Healthy";
-};
-
-const getDashboardPage = async (req, res) => {
+const getHomePage = async (req, res) => {
   try {
-    const user = await User.findById(req.session.userId);
-
-    if (!user) {
-      return res.redirect("/login");
+    if (!req.session.userId) {
+      return res.render("store/homePage", {
+        userName: null,
+        userId: null,
+        todayTotal: 0,
+        totalEntries: 0,
+        recentEntries: [],
+        chartLabels: [],
+        chartData: [],
+        productivityScore: 100,
+        usageStatus: "Healthy",
+        currentStreak: 0,
+        bestStreak: 0,
+        timeLeft: 0,
+        mostUsedCategory: "No data",
+        warningLimit: 0,
+        dangerLimit: 0,
+        dailyLimit: 0,
+        progressPercent: 0,
+      });
     }
 
-    const allEntries = await ScreenTime.find({
-      user: req.session.userId
-    }).sort({ createdAt: -1 });
+    const user = await User.findById(req.session.userId);
 
-    const startOfToday = getStartOfDay();
-    const endOfToday = getEndOfDay();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
     const todayEntries = await ScreenTime.find({
       user: req.session.userId,
-      date: { $gte: startOfToday, $lt: endOfToday }
-    }).sort({ createdAt: -1 });
+      date: { $gte: startOfToday },
+    });
 
     const todayTotal = todayEntries.reduce((sum, entry) => sum + entry.hours, 0);
-    const todayTotalRounded = formatHours(todayTotal);
-    const timeLeft = Math.max(user.dailyLimit - todayTotal, 0);
 
-    const categoryTotals = {
+    const totalEntries = await ScreenTime.countDocuments({
+      user: req.session.userId,
+    });
+
+    const recentEntries = await ScreenTime.find({
+      user: req.session.userId,
+    })
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    const todayCategoryTotals = {
       "Social Media": 0,
       Entertainment: 0,
       Study: 0,
       Gaming: 0,
-      Other: 0
+      Other: 0,
     };
 
     todayEntries.forEach((entry) => {
-      if (categoryTotals[entry.category] !== undefined) {
-        categoryTotals[entry.category] += entry.hours;
-      } else {
-        categoryTotals.Other += entry.hours;
+      if (todayCategoryTotals[entry.category] !== undefined) {
+        todayCategoryTotals[entry.category] += entry.hours;
       }
     });
-
-    const categoryChartLabels = CATEGORY_KEYS;
-    const categoryChartData = CATEGORY_KEYS.map((key) =>
-      formatHours(categoryTotals[key] || 0)
-    );
 
     let mostUsedCategory = "No data";
-    let mostUsedCategoryHours = 0;
+    let maxCategoryHours = 0;
 
-    CATEGORY_KEYS.forEach((key) => {
-      if (categoryTotals[key] > mostUsedCategoryHours) {
-        mostUsedCategoryHours = categoryTotals[key];
-        mostUsedCategory = key;
+    Object.entries(todayCategoryTotals).forEach(([category, hours]) => {
+      if (hours > maxCategoryHours) {
+        maxCategoryHours = hours;
+        mostUsedCategory = category;
       }
     });
 
-    const last7Days = getLast7Days();
-    const weeklyChartLabels = [];
-    const weeklyChartData = [];
-    const weeklyBreakdown = [];
-
-    for (const day of last7Days) {
-      const nextDay = new Date(day);
-      nextDay.setDate(nextDay.getDate() + 1);
-
-      const dayEntries = await ScreenTime.find({
-        user: req.session.userId,
-        date: { $gte: day, $lt: nextDay }
-      });
-
-      const total = dayEntries.reduce((sum, entry) => sum + entry.hours, 0);
-
-      const dayLabel = day.toLocaleDateString("en-IN", {
-        weekday: "short"
-      });
-
-      weeklyChartLabels.push(dayLabel);
-      weeklyChartData.push(formatHours(total));
-      weeklyBreakdown.push({
-        label: day.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "short"
-        }),
-        total: formatHours(total)
-      });
-    }
-
-    const weeklyTotal = weeklyChartData.reduce((sum, value) => sum + value, 0);
-    const weeklyAverage = weeklyTotal / 7;
-
-    const extensionEntries = allEntries.filter(
-      (entry) => entry.source === "extension"
+    const productivityScore = getProductivityScore(
+      todayTotal,
+      user.warningLimit,
+      user.dangerLimit
     );
 
-    const websiteMap = {};
+    const usageStatus = getUsageStatus(
+      todayTotal,
+      user.warningLimit,
+      user.dangerLimit
+    );
 
-    extensionEntries.forEach((entry) => {
-      const key = entry.domain || "Unknown";
-      if (!websiteMap[key]) {
-        websiteMap[key] = {
-          domain: key,
-          totalHours: 0,
-          visits: 0,
-          lastTitle: entry.title || "N/A",
-          category: entry.category || "Other"
-        };
-      }
+    const timeLeft = Math.max(user.dailyLimit - todayTotal, 0);
+    const progressPercent = Math.min((todayTotal / user.dailyLimit) * 100, 100);
 
-      websiteMap[key].totalHours += entry.hours || 0;
-      websiteMap[key].visits += 1;
-
-      if (entry.title) {
-        websiteMap[key].lastTitle = entry.title;
-      }
-    });
-
-    const topWebsites = Object.values(websiteMap)
-      .sort((a, b) => b.totalHours - a.totalHours)
-      .slice(0, 5)
-      .map((site) => ({
-        domain: site.domain,
-        totalHours: formatHours(site.totalHours),
-        visits: site.visits,
-        lastTitle: site.lastTitle,
-        category: site.category
-      }));
-
-    const recentExtensionActivity = extensionEntries.slice(0, 8).map((entry) => ({
-      domain: entry.domain || "N/A",
-      title: entry.title || "N/A",
-      url: entry.url || "N/A",
-      category: entry.category || "Other",
-      hours: formatHours(entry.hours || 0),
-      createdAt: entry.createdAt
-    }));
-
-    const progressPercent =
-      user.dailyLimit > 0
-        ? Math.min((todayTotal / user.dailyLimit) * 100, 100)
-        : 0;
-
-    const usageStatus = getUsageStatus(todayTotal, user);
-
-    res.render("store/dashboard", {
-      userName: req.session.userName || user.name || null,
-      user,
-      todayTotal: todayTotalRounded,
-      timeLeft: formatHours(timeLeft),
-      dailyLimit: user.dailyLimit,
+    res.render("store/homePage", {
+      userName: req.session.userName || null,
+      userId: req.session.userId,
+      todayTotal: Number(todayTotal.toFixed(2)),
+      totalEntries,
+      recentEntries,
+      chartLabels: Object.keys(todayCategoryTotals),
+      chartData: Object.values(todayCategoryTotals),
+      productivityScore,
+      usageStatus,
+      currentStreak: user.currentStreak || 0,
+      bestStreak: user.bestStreak || 0,
+      timeLeft: Number(timeLeft.toFixed(2)),
+      mostUsedCategory,
       warningLimit: user.warningLimit,
       dangerLimit: user.dangerLimit,
-      usageStatus,
+      dailyLimit: user.dailyLimit,
       progressPercent: Number(progressPercent.toFixed(1)),
-      mostUsedCategory,
-      mostUsedCategoryHours: formatHours(mostUsedCategoryHours),
-      todaySessionCount: todayEntries.length,
-      weeklyTotal: formatHours(weeklyTotal),
-      weeklyAverage: formatHours(weeklyAverage),
-      categoryChartLabels: JSON.stringify(categoryChartLabels),
-      categoryChartData: JSON.stringify(categoryChartData),
-      weeklyChartLabels: JSON.stringify(weeklyChartLabels),
-      weeklyChartData: JSON.stringify(weeklyChartData),
-      topWebsites,
-      recentExtensionActivity,
-      weeklyBreakdown
     });
   } catch (error) {
-    console.error("DASHBOARD ERROR:", error);
-    res.render("store/dashboard", {
+    res.render("store/homePage", {
       userName: req.session.userName || null,
-      user: null,
+      userId: req.session.userId || null,
       todayTotal: 0,
+      totalEntries: 0,
+      recentEntries: [],
+      chartLabels: [],
+      chartData: [],
+      productivityScore: 100,
+      usageStatus: "Healthy",
+      currentStreak: 0,
+      bestStreak: 0,
       timeLeft: 0,
-      dailyLimit: 0,
+      mostUsedCategory: "No data",
       warningLimit: 0,
       dangerLimit: 0,
-      usageStatus: "Healthy",
+      dailyLimit: 0,
       progressPercent: 0,
-      mostUsedCategory: "No data",
-      mostUsedCategoryHours: 0,
-      todaySessionCount: 0,
-      weeklyTotal: 0,
-      weeklyAverage: 0,
-      categoryChartLabels: JSON.stringify([]),
-      categoryChartData: JSON.stringify([]),
-      weeklyChartLabels: JSON.stringify([]),
-      weeklyChartData: JSON.stringify([]),
-      topWebsites: [],
-      recentExtensionActivity: [],
-      weeklyBreakdown: [],
-      error: "Could not load dashboard"
     });
   }
 };
 
-module.exports = {
-  getDashboardPage
-};
+module.exports = { getHomePage };

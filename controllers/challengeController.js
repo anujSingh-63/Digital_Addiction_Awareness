@@ -40,7 +40,6 @@ const getChallengesPage = async (req, res) => {
       currentUserId: req.session.userId,
     });
   } catch (error) {
-    console.error(error);
     res.render("store/detoxChallenges", {
       userName: req.session.userName || null,
       challenges: [],
@@ -96,7 +95,6 @@ const joinChallenge = async (req, res) => {
       currentUserId: req.session.userId,
     });
   } catch (error) {
-    console.error(error);
     const challenges = await Challenge.find().sort({ createdAt: -1 });
 
     res.render("store/detoxChallenges", {
@@ -154,7 +152,6 @@ const updateChallengeProgress = async (req, res) => {
       currentUserId: req.session.userId,
     });
   } catch (error) {
-    console.error(error);
     const challenges = await Challenge.find().sort({ createdAt: -1 });
 
     res.render("store/detoxChallenges", {

@@ -45,8 +45,40 @@ const screenTimeSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // New fields for live tracking
+    appName: {
+      type: String,
+      default: null,
+    },
+    website: {
+      type: String,
+      default: null,
+    },
+    url: {
+      type: String,
+      default: null,
+    },
+    trackedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    trackingType: {
+      type: String,
+      enum: ["manual", "app", "website", "session"],
+      default: "manual",
+    },
+    duration: {
+      // Duration in seconds
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
+
+// Index for faster queries
+screenTimeSchema.index({ user: 1, date: 1 });
+screenTimeSchema.index({ user: 1, trackedAt: 1 });
+screenTimeSchema.index({ user: 1, trackingType: 1 });
 
 module.exports = mongoose.model("ScreenTime", screenTimeSchema);

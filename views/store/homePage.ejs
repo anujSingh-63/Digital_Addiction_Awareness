@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screen Time Overview</title>
+  <!-- //<link rel="stylesheet" src="" -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -11,6 +12,12 @@
 <body class="bg-gradient-to-br from-blue-50 via-white to-indigo-50 min-h-screen text-slate-800 font-sans">
 
   <%- include("../partials/navbar") %>
+
+  <!-- Server Info Console Display -->
+  <div id="serverInfoBanner" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 text-center text-sm sm:text-base font-semibold shadow-md" style="display: none;">
+    <i class="fas fa-server mr-2"></i>
+    <span id="serverLink"></span>
+  </div>
 
   <%
     function formatTime(value) {
@@ -91,7 +98,7 @@
         <div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden">
           <div
             class="h-4 rounded-full <%= usageStatus === 'Healthy' ? 'bg-green-500' : usageStatus === 'Approaching Limit' ? 'bg-yellow-500' : 'bg-red-500' %>"
-            style="width:<%= progressPercent %>%"
+            style="width:<%= progressPercent %>"
           ></div>
         </div>
 
@@ -197,7 +204,7 @@
       parsedLabels = JSON.parse(labelsEl.textContent);
       parsedData = JSON.parse(dataEl.textContent);
     } catch (error) {
-      console.error("Chart data parse error:", error);
+      // Chart data parse error
     }
 
     if (dashboardCtx) {
@@ -219,6 +226,20 @@
         }
       });
     }
+  </script>
+
+  <script>
+    // Fetch and display server info
+    fetch('/api/server-info')
+      .then(res => res.json())
+      .then(data => {
+        const banner = document.getElementById('serverInfoBanner');
+        const link = document.getElementById('serverLink');
+        link.innerHTML = `🔗 Server: <a href="${data.url}" target="_blank" class="underline hover:text-gray-100"><strong>${data.url}</strong></a>`;
+        banner.style.display = 'block';
+        console.log(`🚀 Connected to: ${data.url}`);
+      })
+      .catch(err => console.error('Failed to fetch server info:', err));
   </script>
 </body>
 </html>

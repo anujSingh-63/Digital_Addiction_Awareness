@@ -4,9 +4,9 @@ const http = require("http");
 const session = require("express-session");
 const MongoStore = require("connect-mongo").default;
 const dotenv = require("dotenv");
-const { Server } = require("socket.io");
-
+const { execSync } = require("child_process");
 const connectDB = require("./config/db");
+const { protect } = require("./middleware/authMiddleware");
 const { initSocket } = require("./sockets");
 
 dotenv.config();
@@ -19,19 +19,17 @@ const reportRoutes = require("./routes/reportRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const challengeRoutes = require("./routes/challengeRoutes");
 const profileRoutes = require("./routes/profileRoutes");
-const focusRoutes = require("./routes/focusRoutes");
-const extensionRoutes = require("./routes/extensionRoutes");
+const tracker = require("./tracker");
+const ScreenTime = require("./models/ScreenTime");
+
+// Global storage for system app data and website data
+global.systemAppData = [];
+global.websiteData = [];
 
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
-});
-
-initSocket(io);
+initSocket(server);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -66,15 +64,151 @@ app.use("/", reportRoutes);
 app.use("/", alertRoutes);
 app.use("/", challengeRoutes);
 app.use("/", profileRoutes);
-app.use("/", focusRoutes);
-app.use("/", extensionRoutes);
+app.use("/track", require("./routes/trackRoutes"));
+
+// System App Tracking Routes (with Database Storage)
+app.post("/api/system-app-data", async (req, res) => {
+  const { appName, timeSpent } = req.body;
+  const userId = req.session?.userId; // Extract userId from session
+  
+  if (!appName || !timeSpent) {
+    return res.status(400).json({ error: "Missing appName or timeSpent" });
+  }
+  
+  // Add to global storage (keep last 50 entries for real-time display)
+  global.systemAppData.push({
+    appName,
+    timeSpent,
+    timestamp: new Date()
+  });
+  
+  if (global.systemAppData.length > 50) {
+    global.systemAppData.shift();
+  }
+  
+  // Save to database for reports (if user session exists)
+  try {
+    await ScreenTime.create({
+      appName,
+      duration: timeSpent,
+      hours: timeSpent / 3600, // Convert seconds to hours
+      category: "Other", // Default category for app tracking
+      date: new Date(),
+      trackedAt: new Date(),
+      trackingType: "app",
+      user: userId || null, // Use extracted userId from session
+    });
+  } catch (err) {
+    // Error saving app data to database
+  }
+  res.json({ success: true });
+});
+
+app.get("/api/system-app-data", (req, res) => {
+  res.json(global.systemAppData);
+});
+
+// Website Tracking Routes (from Chrome Extension - with Database Storage)
+app.post("/api/website-data", async (req, res) => {
+  const { website, url, timeSpent } = req.body;
+  const userId = req.session?.userId; // Extract userId from session
+  
+  if (!website) {
+    return res.status(400).json({ error: "Missing website" });
+  }
+  
+  // Add to global storage (keep last 50 entries for real-time display)
+  global.websiteData.push({
+    website,
+    url,
+    timeSpent: timeSpent || 10,
+    timestamp: new Date()
+  });
+  
+  if (global.websiteData.length > 50) {
+    global.websiteData.shift();
+  }
+  
+  // Save to database for reports
+  try {
+    await ScreenTime.create({
+      website,
+      url,
+      duration: timeSpent || 10,
+      hours: (timeSpent || 10) / 3600, // Convert seconds to hours
+      category: "Social Media", // Default category for website tracking
+      date: new Date(),
+      trackedAt: new Date(),
+      trackingType: "website",
+      user: userId || null, // Use extracted userId from session
+    });
+  } catch (err) {
+    // Error saving website data to database
+  }
+  res.json({ success: true });
+});
+
+app.get("/api/website-data", (req, res) => {
+  res.json(global.websiteData);
+});
+
+// Combined Live Tracking Data (Apps + Websites)
+app.get("/api/live-tracking", (req, res) => {
+  const combined = {
+    apps: global.systemAppData.slice(-10),
+    websites: global.websiteData.slice(-10)
+  };
+  res.json(combined);
+});
+ //app.use("/",tracker);
 
 app.use((req, res) => {
   res.status(404).render("404");
 });
 
+process.on("SIGINT", () => {
+  process.exit();
+});
+
 const PORT = process.env.PORT || 5002;
 
+// API endpoint to get server info
+app.get("/api/server-info", (req, res) => {
+  res.json({
+    url: `http://localhost:${PORT}`,
+    port: PORT
+  });
+});
+
+
+// API endpoint to get git commit info (committed message tracking)
+app.get("/api/git-info", (req, res) => {
+  try {
+    const { execSync } = require("child_process");
+    const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
+    const commitMessage = execSync("git log -1 --pretty=%B").toString().trim();
+    const commitAuthor = execSync("git log -1 --pretty=%an").toString().trim();
+    const commitDate = execSync("git log -1 --pretty=%ad --date=short").toString().trim();
+    const commitTime = execSync("git log -1 --pretty=%ar").toString().trim();
+    
+    res.json({
+      hash: commitHash,
+      message: commitMessage,
+      author: commitAuthor,
+      date: commitDate,
+      relativeTime: commitTime
+    });
+  } catch (err) {
+    res.json({
+      hash: "unknown",
+      message: "Version tracking unavailable",
+      author: "System",
+      date: new Date().toISOString().split('T')[0],
+      relativeTime: "unknown"
+    });
+  }
+});
+
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
