@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middleware/authMiddleware");
-const { getDashboardPage } = require("../controllers/dashboardController");
+const { getHomePage } = require("../controllers/dashboardController");
 
-router.get("/dashboard", protect, getDashboardPage);
+router.get("/dashboard", protect, getHomePage);
 
 module.exports = router;
 console.log("dashboardRoutes loaded");
