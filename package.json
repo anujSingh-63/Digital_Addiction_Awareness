@@ -8,7 +8,7 @@
     "tailwind:watch": "npx tailwindcss -i ./views/input.css -o ./public/Output.css --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon app.js",
-    "dev": "concurrently \"nodemon app.js\" \"npm run tailwind:watch\"\"active-win\"\"node fetchActiveWindow.js\""
+    "dev": "concurrently \"nodemon app.js\" \"npm run tailwind:watch\" \"node fetchActiveWindow.js\""
   },
   "repository": {
     "type": "git",
